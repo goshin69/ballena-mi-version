@@ -1,0 +1,160 @@
+import pygame, sys
+from pygame.locals import *
+import random, time
+pygame.init()
+FPS = 30
+FramePerSec = pygame.time.Clock()  
+VOLUME = 0.5
+pygame.mixer.init() 
+pygame.mixer.music.load("hpiano.mp3")
+pygame.mixer.music.set_volume(VOLUME) 
+BLUE  = (0, 0, 255)
+RED   = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+SCREEN_WIDTH = 1024
+SCREEN_HEIGHT = 680
+SPEED = 10
+SCORE = 0
+font = pygame.font.SysFont("Verdana", 60) 
+font_small = pygame.font.SysFont("Verdana", 20)
+game_over = font.render("WASTED", True, RED)
+#Cambiar el texto de game over :)
+background = pygame.image.load("ocesi.jpg")
+DISPLAYSURF = pygame.display.set_mode((1024,680))
+DISPLAYSURF.fill(WHITE)
+pygame.display.set_caption("SUPER WHALE")   
+#Cambiar el titulo :)
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, speed=SPEED):
+        super().__init__() 
+        self.images = [
+            pygame.image.load("nbanitermo1.png").convert_alpha(),
+            pygame.image.load("nbanitermo2.png").convert_alpha(),
+            pygame.image.load("nbanitermo3.png").convert_alpha(),
+            pygame.image.load("nbanitermo4.png").convert_alpha(),
+        ]
+        self.current_frame = 0
+        self.image = self.images[self.current_frame]
+        # Get original rect for positioning
+        original_rect = self.image.get_rect()
+        original_rect.center = (SCREEN_WIDTH, random.randint(40, SCREEN_HEIGHT-40))
+        # Reduce hitbox width (e.g., 60% of sprite width)
+        hitbox_width = int(original_rect.width * 0.3)
+        hitbox_height = original_rect.height
+        self.rect = pygame.Rect(
+            original_rect.centerx - hitbox_width // 2,
+            original_rect.centery - hitbox_height // 3,
+            hitbox_width,
+            hitbox_height
+        )
+        self.base_speed = speed
+        self.animation_timer = 0
+        self.animation_speed = 10
+
+    def move(self):
+        global SCORE
+        # Animate by cycling frames
+        self.animation_timer += 1
+        if self.animation_timer >= self.animation_speed:
+            self.animation_timer = 0
+            self.current_frame = (self.current_frame + 1) % len(self.images)
+            self.image = self.images[self.current_frame]
+        # Increase speed every +2 SCORE
+        self.speed = self.base_speed + (SCORE // 2)
+        self.rect.move_ip(-self.speed, 0)  # Move left using updated speed
+        if self.rect.right < 0:  # If off screen to the left
+            SCORE += 1
+            self.rect.left = SCREEN_WIDTH  # Reset to right edge
+            self.rect.centery = random.randint(40, SCREEN_HEIGHT-40)  # Random vertical position
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__() 
+        self.images = [
+            pygame.image.load("miball.png").convert_alpha(),
+            pygame.image.load("miball2.png").convert_alpha(),
+        ]
+        self.current_frame = 0
+        self.image = self.images[self.current_frame]
+        # Get original rect for positioning
+        original_rect = self.image.get_rect()
+        original_rect.center = (400, 380)
+        # Reduce hitbox width (e.g., 60% of sprite width)
+        hitbox_width = int(original_rect.width * 0.2)
+        hitbox_height = original_rect.height
+        self.rect = pygame.Rect(
+            original_rect.centerx - hitbox_width // 1,
+            original_rect.centery - hitbox_height // 2,
+            hitbox_width,
+            hitbox_height
+        )
+        self.animation_timer = 0
+        self.animation_speed = 10
+
+    def move(self):
+        pressed_keys = pygame.key.get_pressed()
+        if pressed_keys[K_LEFT] and self.rect.left > 0:
+            self.rect.move_ip(-5, 0)
+        if pressed_keys[K_RIGHT] and self.rect.right < SCREEN_WIDTH:
+            self.rect.move_ip(5, 0)
+        if pressed_keys[K_UP] and self.rect.top > 0:
+            self.rect.move_ip(0, -5)
+        if pressed_keys[K_DOWN] and self.rect.bottom < SCREEN_HEIGHT:
+            self.rect.move_ip(0, 5)
+        # Animate by cycling frames
+        self.animation_timer += 1
+        if self.animation_timer >= self.animation_speed:
+            self.animation_timer = 0
+            self.current_frame = (self.current_frame + 1) % len(self.images)
+            self.image = self.images[self.current_frame]
+
+P1 = Player()
+E1 = Enemy()
+#E2 = Enemy()
+#E3 = Enemy()    
+#E4 = Enemy()
+enemies = pygame.sprite.Group()
+enemies.add(E1)
+#enemies.add(E2)
+#enemies.add(E3)
+#enemies.add(E4) 
+all_sprites = pygame.sprite.Group()
+all_sprites.add(P1)    
+all_sprites.add(E1)
+#all_sprites.add(E2)     
+#all_sprites.add(E3)
+#all_sprites.add(E4)
+def restart_game():
+    global SCORE, P1, E1, enemies, all_sprites
+    SCORE = 0
+    P1 = Player()
+    E1 = Enemy()
+    enemies = pygame.sprite.Group()
+    enemies.add(E1)
+    all_sprites = pygame.sprite.Group()
+    all_sprites.add(P1)
+    all_sprites.add(E1)
+
+while True:
+    for event in pygame.event.get():
+        if event.type == QUIT:
+            pygame.quit()
+            sys.exit()
+    DISPLAYSURF.blit(background, (0,0))    
+    for entity in all_sprites:
+        DISPLAYSURF.blit(entity.image, entity.rect)  # Draw sprite at its position
+        entity.move()                                # Update position
+    scores = font_small.render(str(SCORE), True, GREEN)
+    DISPLAYSURF.blit(scores, (10,10))
+    if pygame.sprite.spritecollideany(P1, enemies):
+          pygame.mixer.Sound('fiasco.wav').play()
+          time.sleep(0.5)            
+          DISPLAYSURF.fill(BLUE)
+          DISPLAYSURF.blit(game_over, (80,250))
+          pygame.display.update()
+          time.sleep(2)
+          restart_game()  # Restart game instead of quitting
+          continue        # Skip rest of loop to start fresh
+    pygame.display.update()
+    FramePerSec.tick(FPS)
